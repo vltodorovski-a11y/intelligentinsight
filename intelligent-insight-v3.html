@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intelligent Insight — Платформа за предиктивна анализа на квалитет</title>
+
+<!-- Ниту една надворешна скрипта не се вчитува при отворање — библиотеките за читање
+     .xlsx/.csv се повлекуваат дури при прикачување датотека. Најавата е 100% локална. -->
+<!-- Фонтовите исто така не го блокираат вчитувањето; ако нема интернет, се користат системски фонтови. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" media="print" onload="this.media='all'"
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Unbounded:wght@500;700&display=swap&subset=cyrillic,cyrillic-ext">
+
+<style>
+:root{
+  --paper:#EEF1F4; --panel:#FFFFFF; --ink:#131E2A; --steel:#5C6B7A;
+  --line:#D8DEE4; --alarm:#CD4335; --amber:#DB9A15; --ok:#1E8659; --navy:#1E3A5F;
+  --side:#131E2A;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;background:var(--paper);font-family:'IBM Plex Sans','Segoe UI',Roboto,sans-serif;color:var(--ink);}
+.mono{font-family:'IBM Plex Mono',Consolas,monospace;}
+.brand{font-family:'Unbounded','IBM Plex Sans',sans-serif;font-weight:700;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 9px;border-radius:3px;font-weight:600;letter-spacing:.3px;}
+.btn{font-family:inherit;font-weight:600;font-size:14px;border:none;border-radius:6px;padding:12px 20px;cursor:pointer;min-height:44px;}
+.btn.primary{background:var(--navy);color:#fff;}
+.btn.primary:hover{background:#26496F;}
+.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink);}
+.btn.ghost:hover{border-color:var(--navy);}
+.btn.danger{background:#FBEAE7;color:var(--alarm);border:1px solid #F0CFC9;}
+.btn.mini{padding:8px 14px;font-size:13px;min-height:36px;}
+input[type=text],input[type=password],input[type=email],select{
+  font-family:inherit;font-size:16px;padding:12px 14px;border:1px solid var(--line);border-radius:6px;width:100%;background:#fff;color:var(--ink);}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--navy);outline-offset:2px;}
+.row:hover{background:#F4F8FA;cursor:pointer;}
+h2.title{font-family:'Unbounded','IBM Plex Sans',sans-serif;font-weight:700;font-size:21px;margin:0;line-height:1.3;}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--steel);text-transform:uppercase;margin-bottom:6px;}
+.sub{margin:8px 0 0;color:var(--steel);font-size:14px;max-width:660px;line-height:1.55;}
+.section-head{margin-bottom:20px;}
+label.f{font-size:13px;font-weight:600;display:block;margin:14px 0 6px;}
+
+#app{display:none;min-height:100vh;}
+#app.on{display:flex;}
+aside{width:236px;background:var(--side);padding:22px 14px;display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+main{flex:1;padding:28px 26px 70px;max-width:1080px;min-width:0;}
+.nav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:none;background:none;color:#93A5B7;
+  font-family:inherit;font-size:14px;font-weight:500;padding:11px 14px;border-radius:6px;cursor:pointer;min-height:42px;}
+.nav:hover{background:#1D2B3B;color:#fff;}
+.nav.active{background:#24374C;color:#fff;font-weight:600;}
+.nav .ik{font-family:'IBM Plex Mono',monospace;width:16px;text-align:center;}
+.side-foot{margin-top:auto;padding:14px 8px 4px;border-top:1px solid #24374C;font-size:11.5px;color:#5C7188;line-height:1.5;}
+
+#topbar{display:none;}
+#scrim{display:none;}
+@media (max-width:760px){
+  #app.on{flex-direction:column;}
+  #topbar{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:30;background:var(--side);padding:10px 14px;}
+  #burger{background:none;border:1px solid #33475C;border-radius:6px;color:#fff;font-size:20px;line-height:1;padding:8px 13px;cursor:pointer;min-height:44px;}
+  aside{position:fixed;top:0;left:0;bottom:0;width:272px;max-width:84vw;z-index:50;
+    transform:translateX(-105%);transition:transform .25s ease;box-shadow:4px 0 24px rgba(0,0,0,.35);overflow-y:auto;}
+  aside.open{transform:none;}
+  #scrim.on{display:block;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(19,30,42,.55);z-index:40;}
+  main{padding:18px 14px 60px;}
+  h2.title{font-size:18px;}
+  @media (prefers-reduced-motion:reduce){aside{transition:none;}}
+}
+
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(160deg,#131E2A 0%,#1E3A5F 100%);}
+
+.kpi-grid{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:30px;}
+.kpi{padding:16px 18px;flex:1 1 200px;}
+.kpi .lbl{font-size:12px;color:var(--steel);font-weight:600;margin-bottom:8px;}
+.kpi .val{font-family:'IBM Plex Mono',monospace;font-size:25px;font-weight:600;line-height:1;}
+.kpi .note{font-size:12px;color:var(--steel);margin-top:8px;}
+.leakbar{height:8px;background:#E4E9ED;border-radius:4px;margin:10px 0 8px;overflow:hidden;}
+.leakbar>div{height:100%;background:var(--navy);}
+.probwrap{display:flex;align-items:center;gap:10px;min-width:150px;}
+.probtrack{flex:1;height:6px;background:#E4E9ED;border-radius:3px;overflow:hidden;}
+.matrix{display:grid;grid-template-columns:24px repeat(5,1fr);gap:4px;}
+.mcell{min-height:40px;aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;color:#fff;border:2px solid transparent;}
+.src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;}
+.fmt{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--steel);background:#F4F7F9;border-radius:4px;padding:6px 9px;}
+.hi3{display:flex;gap:14px;flex-wrap:wrap;}
+.hi3>.card{flex:1 1 280px;padding:18px;}
+.mode-banner{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 16px;border-radius:8px;margin-bottom:22px;font-size:13.5px;}
+.mode-banner.demo{background:#FDF3DE;border:1px solid #EED9A8;}
+.mode-banner.own{background:#E9F1FB;border:1px solid #C9DCF2;}
+.acc-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+.acc-table th{text-align:left;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--steel);padding:10px 10px;border-bottom:2px solid var(--ink);}
+.acc-table td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+@media (max-width:760px){.acc-wrap{overflow-x:auto;}.acc-table{min-width:680px;}}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:12px 18px;border-radius:8px;font-size:13.5px;display:none;z-index:99;max-width:90vw;text-align:center;}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<script>
+/* Ран приказ на грешки: ако нешто во главната скрипта не работи на овој уред,
+   пораката ќе се прикаже на екранот наместо тивко да ја блокира најавата. */
+window.onerror = function(msg, src, line){
+  if(String(msg).indexOf("Script error")===0) return false; /* придушена грешка од надворешна скрипта — не е од платформата */
+  try{
+    var b = document.getElementById('js-err');
+    if(!b){
+      b = document.createElement('div');
+      b.id = 'js-err';
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#CD4335;color:#fff;padding:10px 14px;font:13px/1.5 sans-serif;';
+      (document.body || document.documentElement).appendChild(b);
+    }
+    b.textContent = 'Технички проблем на овој уред: ' + msg + ' (ред ' + line + '). Отворете ја датотеката во понов прелистувач (Chrome/Safari) или пратете ни ја оваа порака.';
+  }catch(e){}
+  return false;
+};
+</script>
+<noscript><div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#CD4335;color:#fff;padding:10px 14px;font:13px/1.5 sans-serif;">
+Апликацијата во која е отворен фајлот има исклучен JavaScript. Отворете го фајлот во Chrome или Safari за платформата да работи.</div></noscript>
+
+<!-- ================= НАЈАВА ================= -->
+<div id="login">
+  <div style="width:100%;max-width:430px;">
+    <div style="text-align:center;margin-bottom:26px;">
+      <div class="brand" style="font-size:26px;color:#fff;letter-spacing:.5px;">Intelligent <span style="color:#7FB4E8;">Insight</span></div>
+      <div style="color:#93A5B7;font-size:13.5px;margin-top:8px;line-height:1.5;">
+        Вашите податоци од системот за квалитет, претворени во одлуки:<br>профит · ризици · предвидени неусогласености
+      </div>
+    </div>
+    <div class="card" style="padding:26px;">
+      <label class="f" style="margin-top:0;" for="user-in">Корисничко име</label>
+      <input type="text" id="user-in" placeholder="пр. metalprom" autocomplete="username" autocapitalize="off" autocorrect="off">
+      <label class="f" for="pass-in">Лозинка</label>
+      <input type="password" id="pass-in" placeholder="••••••••" autocomplete="current-password">
+      <div id="login-err" style="display:none;color:var(--alarm);font-size:13px;margin-top:10px;"></div>
+      <button type="button" class="btn primary" style="width:100%;margin-top:20px;" id="login-btn" onclick="doLogin()">Најави се</button>
+      <div style="font-size:12px;color:var(--steel);margin-top:16px;line-height:1.7;background:#F4F7F9;border-radius:6px;padding:10px 12px;">
+        <strong>Пробни сметки:</strong><br>
+        Клиент: <span class="mono">demo / demo</span><br>
+        Администратор (за вашата фирма): <span class="mono">admin / admin2026</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ПЛАТФОРМА ================= -->
+<div id="app">
+  <div id="topbar">
+    <button type="button" id="burger" aria-label="Отвори мени" onclick="toggleSide()">☰</button>
+    <span class="brand" style="font-size:15px;color:#fff;">Intelligent <span style="color:#7FB4E8;">Insight</span></span>
+  </div>
+  <aside id="sidebar"></aside>
+  <div id="scrim" onclick="toggleSide(false)"></div>
+  <main id="main"></main>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+/* ==================================================================
+   INTELLIGENT INSIGHT v3 — самостоен .html фајл
+   · Сметки за клиенти (до 20 активни истовремено) + админ-интерфејс
+   · Демо режим / сопствени податоци — избор по сметка
+   · Поправена најава на телефон: надворешните скрипти и фонтови веќе
+     не го блокираат вчитувањето, а сите настани се врзани безбедно.
+   ================================================================== */
+
+"use strict";
+
+/* ---------- безбедно зачувување (работи и таму каде localStorage е недостапен) ---------- */
+const memStore={};
+const store={
+  get(k){ try{ return window.localStorage.getItem(k); }catch(e){ return memStore[k]!==undefined?memStore[k]:null; } },
+  set(k,v){ try{ window.localStorage.setItem(k,v); }catch(e){ memStore[k]=v; } }
+};
+
+/* ---------- помошни ---------- */
+const MAX_AKTIVNI=20;
+const mkd = n => Math.round(n).toLocaleString("mk-MK").replace(/,/g,".") + " МКД";
+const nz=(x,d)=>(x==null?d:x);
+const num = v => { const n=Number(String(nz(v,"")).replace(/[^\d.,-]/g,"").replace(",",".")); return isNaN(n)?0:n; };
+const findCol = (row,keys) => Object.keys(row||{}).find(k=>keys.some(s=>k.toLowerCase().includes(s)));
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const rizikBoja=(v,vl)=>{const s=v*vl;return s>=15?"var(--alarm)":s>=8?"var(--amber)":"var(--ok)";};
+const probBoja=p=>p>=75?"var(--alarm)":p>=50?"var(--amber)":"var(--ok)";
+const denes=()=>new Date().toLocaleDateString("mk-MK");
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.style.display="block";
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.display="none",3200); }
+window.addEventListener("error",e=>{ try{toast("Грешка: "+e.message);}catch(_){} });
+
+/* ---------- извори ---------- */
+const SOURCES={
+  kpi:{naziv:"КПИ (Excel)",ikona:"📈",format:"Месец, Приход, Трошоци за квалитет, Испораки на време %",
+    opis:"Месечни клучни показатели: приход, трошоци за квалитет, точност на испорака."},
+  complaints:{naziv:"Рекламации",ikona:"📮",format:"Датум, Категорија, Трошок, Статус",
+    opis:"Поплаки и рекламации од купувачи, со категорија и трошок за решавање."},
+  capa:{naziv:"CAPA мерки",ikona:"🔧",format:"Ознака, Област, Точка ИСО, Рок, Статус",
+    opis:"Корективни и превентивни мерки: отворени, затворени и пробиени рокови."},
+  audits:{naziv:"Внатрешни проверки",ikona:"🔍",format:"Датум, Процес, Точка ИСО, Тип на наод, Статус",
+    opis:"Наоди од внатрешни проверки: големи/мали неусогласености и забелешки."},
+  energy:{naziv:"Потрошувачка на енергија",ikona:"⚡",format:"Месец, kWh, Трошок",
+    opis:"Месечна потрошувачка на електрична енергија и трошок (ИСО 50001 контекст)."},
+  waste:{naziv:"Отпад",ikona:"♻️",format:"Месец, Количина кг, Трошок за депонирање, Рециклирано %",
+    opis:"Генериран отпад, трошок за згрижување и стапка на рециклирање (ИСО 14001 контекст)."},
+};
+const PRAZNI={kpi:null,complaints:null,capa:null,audits:null,energy:null,waste:null};
+const OBLAST_IME={
+  "8.5.1":"Контрола на производство","7.2":"Компетентност и обука","7.1.5":"Ресурси за следење и мерење",
+  "8.4":"Надворешни добавувачи","8.5.4":"Зачувување (ракување и складирање)",
+  "14001·8.1":"Оперативна контрола — животна средина","50001·6.2":"Енергетски цели и планирање",
+};
+
+/* ---------- демо податоци ---------- */
+const MESECI=["Јан","Фев","Мар","Апр","Мај","Јун"];
+const DEMO={
+  kpi:MESECI.map((m,i)=>({mesec:m,prihod:[4100,4250,3980,4400,4520,4610][i]*1000,
+    trosociKvalitet:[310,342,405,388,447,486][i]*1000,naVreme:[96,95,92,93,90,89][i]})),
+  complaints:[
+    ["05.01","Димензии надвор од толеранција",34000,"затворена"],["19.01","Оштетена амбалажа",8000,"затворена"],
+    ["02.02","Димензии надвор од толеранција",41000,"затворена"],["21.02","Доцнење на испорака",12000,"затворена"],
+    ["06.03","Димензии надвор од толеранција",56000,"затворена"],["14.03","Површинска обработка",22000,"затворена"],
+    ["28.03","Доцнење на испорака",15000,"затворена"],["09.04","Димензии надвор од толеранција",48000,"затворена"],
+    ["17.04","Оштетена амбалажа",9000,"затворена"],["03.05","Димензии надвор од толеранција",62000,"отворена"],
+    ["12.05","Доцнење на испорака",18000,"затворена"],["26.05","Површинска обработка",27000,"отворена"],
+    ["04.06","Димензии надвор од толеранција",71000,"отворена"],["15.06","Доцнење на испорака",21000,"отворена"],
+  ].map(([datum,kategorija,trosok,status],i)=>({id:"РК-"+String(i+1).padStart(2,"0"),datum,kategorija,trosok,status})),
+  capa:[
+    ["КМ-01","Контрола на производство","8.5.1","15.03","затворена"],
+    ["КМ-02","Компетентност / обука","7.2","30.04","пробиен рок"],
+    ["КМ-03","Калибрација на опрема","7.1.5","20.05","пробиен рок"],
+    ["КМ-04","Оценување на добавувачи","8.4","10.06","отворена"],
+    ["КМ-05","Контрола на производство","8.5.1","25.05","пробиен рок"],
+    ["КМ-06","Управување со отпад","14001·8.1","30.06","отворена"],
+    ["КМ-07","Ракување и складирање","8.5.4","15.04","затворена"],
+    ["КМ-08","Енергетска ефикасност","50001·6.2","31.07","отворена"],
+  ].map(([id,oblast,tocka,rok,status])=>({id,oblast,tocka,rok,status})),
+  audits:[
+    ["12.02","Производство","8.5.1","голема","отворен"],["12.02","Производство","8.5.1","мала","затворен"],
+    ["13.02","Метрологија","7.1.5","мала","отворен"],["10.03","Човечки ресурси","7.2","мала","отворен"],
+    ["10.03","Набавка","8.4","забелешка","затворен"],["14.04","Производство","8.5.1","мала","отворен"],
+    ["14.04","Магацин","8.5.4","забелешка","затворен"],["12.05","Метрологија","7.1.5","голема","отворен"],
+    ["12.05","Животна средина","14001·8.1","мала","отворен"],["09.06","Енергетски тим","50001·6.2","забелешка","отворен"],
+  ].map(([datum,proces,tocka,tip,status],i)=>({id:"Н-"+String(i+1).padStart(2,"0"),datum,proces,tocka,tip,status})),
+  energy:MESECI.map((m,i)=>({mesec:m,kwh:[118,121,134,129,147,156][i]*100,trosok:[94,97,109,105,121,130][i]*1000})),
+  waste:MESECI.map((m,i)=>({mesec:m,kg:[2100,2260,2740,2580,3050,3240][i],trosok:[63,68,84,79,95,102][i]*1000,recikl:[34,33,30,31,27,25][i]})),
+};
+
+/* ---------- нормализација на прикачени датотеки ---------- */
+const NORMALIZERS={
+  kpi(rows){const r0=rows[0];if(!r0)return null;
+    const cM=findCol(r0,["месец","month","период"]),cP=findCol(r0,["приход","revenue"]),
+          cT=findCol(r0,["квалитет","quality","трошоц","трошок"]),cV=findCol(r0,["време","time","испорак"]);
+    if(!cM||!cT)return null;
+    return rows.map(r=>({mesec:String(r[cM]),prihod:num(r[cP]),trosociKvalitet:num(r[cT]),naVreme:num(r[cV])}));},
+  complaints(rows){const r0=rows[0];if(!r0)return null;
+    const cD=findCol(r0,["датум","date"]),cK=findCol(r0,["категор","тип","type","category","опис"]),
+          cT=findCol(r0,["трошок","cost","изно"]),cS=findCol(r0,["статус","status"]);
+    if(!cK)return null;
+    return rows.map((r,i)=>({id:"РК-"+(i+1),datum:String(nz(r[cD],"")),kategorija:String(r[cK]),trosok:num(r[cT]),status:String(nz(r[cS],"отворена")).toLowerCase()}));},
+  capa(rows){const r0=rows[0];if(!r0)return null;
+    const cI=findCol(r0,["ознака","id","број"]),cO=findCol(r0,["област","опис","area"]),
+          cK=findCol(r0,["точка","клаузул","clause","исо","iso"]),cR=findCol(r0,["рок","due"]),cS=findCol(r0,["статус","status"]);
+    if(!cS)return null;
+    return rows.map((r,i)=>({id:String(nz(r[cI],"КМ-"+(i+1))),oblast:String(nz(r[cO],"")),tocka:String(nz(r[cK],"")),rok:String(nz(r[cR],"")),status:String(r[cS]).toLowerCase()}));},
+  audits(rows){const r0=rows[0];if(!r0)return null;
+    const cD=findCol(r0,["датум","date"]),cP=findCol(r0,["процес","process","сектор"]),
+          cK=findCol(r0,["точка","клаузул","clause","исо","iso"]),cT=findCol(r0,["тип","вид","type"]),cS=findCol(r0,["статус","status"]);
+    if(!cK&&!cP)return null;
+    return rows.map((r,i)=>({id:"Н-"+(i+1),datum:String(nz(r[cD],"")),proces:String(nz(r[cP],"")),tocka:String(nz(r[cK],"")),tip:String(nz(r[cT],"мала")).toLowerCase(),status:String(nz(r[cS],"отворен")).toLowerCase()}));},
+  energy(rows){const r0=rows[0];if(!r0)return null;
+    const cM=findCol(r0,["месец","month","период"]),cK=findCol(r0,["kwh","квч","потрош"]),cT=findCol(r0,["трошок","cost"]);
+    if(!cK)return null;
+    return rows.map(r=>({mesec:String(nz(r[cM],"")),kwh:num(r[cK]),trosok:num(r[cT])}));},
+  waste(rows){const r0=rows[0];if(!r0)return null;
+    const cM=findCol(r0,["месец","month","период"]),cKg=findCol(r0,["кг","kg","количин"]),
+          cT=findCol(r0,["трошок","cost","депони"]),cR=findCol(r0,["рецикл","recycl"]);
+    if(!cKg&&!cT)return null;
+    return rows.map(r=>({mesec:String(nz(r[cM],"")),kg:num(r[cKg]),trosok:num(r[cT]),recikl:num(r[cR])}));},
+};
+
+/* ---------- аналитички мотор ---------- */
+function analyse(d){
+  const {kpi,complaints,capa,audits,energy,waste}=d;
+  if(!kpi&&!complaints&&!capa&&!audits&&!energy&&!waste) return null;
+
+  const leaks=[];
+  if(kpi&&kpi.length){
+    const t=kpi.reduce((a,b)=>a+b.trosociKvalitet,0);
+    const rast=kpi.length>1?Math.round((kpi[kpi.length-1].trosociKvalitet/kpi[0].trosociKvalitet-1)*100):0;
+    leaks.push({naziv:"Трошоци за квалитет (шкарт, доработка)",izvor:"КПИ Excel",iznos:t,trend:rast,
+      opis:`Од ${kpi[0].mesec} до ${kpi[kpi.length-1].mesec} трошоците за квалитет ${rast>=0?"растат":"паѓаат"} за ${Math.abs(rast)}%. `+
+        (kpi[0].prihod?`Во последниот месец тоа е ${(kpi[kpi.length-1].trosociKvalitet/kpi[kpi.length-1].prihod*100).toFixed(1)}% од приходот.`:"")});
+  }
+  if(complaints&&complaints.length){
+    const t=complaints.reduce((a,b)=>a+b.trosok,0);
+    const kat={};complaints.forEach(c=>{kat[c.kategorija]=(kat[c.kategorija]||0)+c.trosok;});
+    const top=Object.entries(kat).sort((a,b)=>b[1]-a[1])[0];
+    leaks.push({naziv:"Рекламации од купувачи",izvor:"Рекламации",iznos:t,trend:null,
+      opis:`${complaints.length} рекламации во периодот. Најскапа категорија: „${top[0]}" — ${mkd(top[1])} (${t?Math.round(top[1]/t*100):0}% од вкупниот трошок).`});
+  }
+  if(energy&&energy.length>2){
+    const avg3=energy.slice(0,3).reduce((a,b)=>a+b.trosok,0)/3;
+    const nad=energy.reduce((a,b)=>a+Math.max(0,b.trosok-avg3),0);
+    if(nad>0) leaks.push({naziv:"Надпросечна потрошувачка на енергија",izvor:"Енергија",iznos:nad,
+      trend:Math.round((energy[energy.length-1].kwh/energy[0].kwh-1)*100),
+      opis:`Трошокот над основната линија (просек на првите 3 месеци) изнесува ${mkd(nad)}. Потрошувачката во kWh расте побрзо од обемот на работа — веројатна енергетска неефикасност.`});
+  }
+  if(waste&&waste.length){
+    const t=waste.reduce((a,b)=>a+b.trosok,0);
+    const rec=waste[waste.length-1].recikl;
+    leaks.push({naziv:"Трошок за згрижување отпад",izvor:"Отпад",iznos:t,
+      trend:waste.length>1?Math.round((waste[waste.length-1].kg/waste[0].kg-1)*100):null,
+      opis:`Количината на отпад расте, а стапката на рециклирање ${rec?`падна на ${rec}%`:"не се следи"}. Дел од овој трошок е директно поврзан со шкартот во производство.`});
+  }
+  const probieniCapa=(capa||[]).filter(c=>c.status.includes("проби")||c.status.includes("overdue"));
+  if(probieniCapa.length){
+    leaks.push({naziv:"Пробиени рокови на CAPA мерки",izvor:"CAPA",iznos:probieniCapa.length*45000,trend:null,procenka:true,
+      opis:`${probieniCapa.length} мерки со пробиен рок. Проценет трошок од повторување на истите проблеми додека мерката не е спроведена (проценка: 45.000 МКД по мерка месечно).`});
+  }
+  leaks.sort((a,b)=>b.iznos-a.iznos);
+  const vkupno=leaks.reduce((a,b)=>a+b.iznos,0);
+
+  const rizici=[];
+  if(probieniCapa.length>=2) rizici.push({naziv:"Неефективен CAPA процес",v:Math.min(5,2+probieniCapa.length),vl:4,sektor:"СМК",
+    opis:`${probieniCapa.length} корективни мерки со пробиен рок (${probieniCapa.map(c=>c.id).join(", ")}). Проблемите остануваат отворени и се повторуваат — ова е и чест наод на сертификациски проверки (точка 10.2).`});
+  if(complaints&&complaints.length){
+    const kat={};complaints.forEach(c=>{kat[c.kategorija]=(kat[c.kategorija]||0)+1;});
+    const [ime,br]=Object.entries(kat).sort((a,b)=>b[1]-a[1])[0];
+    if(br/complaints.length>=0.3) rizici.push({naziv:`Повторлив дефект: „${ime}"`,v:4,vl:4,sektor:"Производство / Квалитет",
+      opis:`${br} од ${complaints.length} рекламации се од иста категорија. Системски проблем, не изолиран случај — ризик од губење клучен купувач.`});
+    const otvoreni=complaints.filter(c=>c.status.includes("отвор")).length;
+    if(otvoreni>=3) rizici.push({naziv:"Заостанати нерешени рекламации",v:3,vl:3,sektor:"Продажба / Квалитет",
+      opis:`${otvoreni} рекламации сè уште отворени. Времето на одговор кон купувачите се продолжува — ризик за задоволството на купувачите (точка 9.1.2).`});
+  }
+  if(audits&&audits.length){
+    const golemi=audits.filter(a=>a.tip.includes("голем")&&a.status.includes("отвор"));
+    if(golemi.length) rizici.push({naziv:"Отворени големи неусогласености",v:4,vl:5,sektor:"СМК",
+      opis:`${golemi.length} големи неусогласености од внатрешни проверки без затворање (${golemi.map(g=>g.tocka).join(", ")}). Директен ризик за суспензија на сертификатот при надзорна проверка.`});
+  }
+  if(energy&&energy.length>1&&energy[energy.length-1].kwh/energy[0].kwh>1.15)
+    rizici.push({naziv:"Растечка енергетска потрошувачка",v:4,vl:3,sektor:"Одржување / Енергетика",
+      opis:`Потрошувачката порасна ${Math.round((energy[energy.length-1].kwh/energy[0].kwh-1)*100)}% во периодот. Можна причина: дотраена опрема или загуби во системот — ризик и за трошоци и за енергетските цели (ИСО 50001).`});
+  if(waste&&waste.length>1&&waste[waste.length-1].recikl&&waste[waste.length-1].recikl<waste[0].recikl)
+    rizici.push({naziv:"Опаѓачка стапка на рециклирање",v:3,vl:3,sektor:"Животна средина",
+      opis:`Рециклирањето падна од ${waste[0].recikl}% на ${waste[waste.length-1].recikl}%. Ризик за еколошките цели (ИСО 14001) и повисоки трошоци за депонирање.`});
+  if(kpi&&kpi.length>1&&kpi[kpi.length-1].naVreme&&kpi[kpi.length-1].naVreme<kpi[0].naVreme-3)
+    rizici.push({naziv:"Опаѓање на испораки на време",v:3,vl:4,sektor:"Планирање / Логистика",
+      opis:`Точноста на испорака падна од ${kpi[0].naVreme}% на ${kpi[kpi.length-1].naVreme}%. Корелира со растот на доработки — доцнењата почнуваат во производството, не во транспортот.`});
+  rizici.sort((a,b)=>b.v*b.vl-a.v*a.vl);
+  rizici.forEach((r,i)=>r.id="Р-"+(i+1));
+
+  const predv=[];
+  if(audits&&audits.length){
+    const poTocka={};
+    audits.forEach(a=>{if(!a.tocka)return;(poTocka[a.tocka]=poTocka[a.tocka]||[]).push(a);});
+    Object.entries(poTocka).forEach(([tocka,naodi])=>{
+      let p=25+naodi.length*14;
+      const signali=[`${naodi.length} наод(и) од внатрешни проверки на истата точка`];
+      if(naodi.some(n=>n.tip.includes("голем"))){p+=12;signali.push("меѓу нив има голема неусогласеност");}
+      if(naodi.some(n=>n.status.includes("отвор"))){p+=8;signali.push("наодите сè уште не се затворени");}
+      const capaTuka=(capa||[]).filter(c=>c.tocka===tocka);
+      if(capaTuka.some(c=>c.status.includes("проби"))){p+=18;signali.push("поврзаната CAPA мерка е со пробиен рок");}
+      if(tocka==="8.5.1"&&complaints&&complaints.length){
+        const proizv=complaints.filter(c=>/димензи|површин|дефект|квалитет/i.test(c.kategorija)).length;
+        if(proizv>=3){p+=10;signali.push(`${proizv} рекламации поврзани со квалитет на производ`);}
+      }
+      predv.push({tocka,oblast:OBLAST_IME[tocka]||naodi[0].proces||tocka,p:Math.min(95,p),signali,
+        merka:capaTuka.length
+          ?`Итно затворање на мерката ${capaTuka[0].id} со проверка на ефективност, пред следната (внатрешна или надзорна) проверка.`
+          :"Отворање превентивна мерка и вонредна фокусирана проверка на процесот пред следниот циклус."});
+    });
+  }
+  predv.sort((a,b)=>b.p-a.p);
+
+  const otvoreniNaodi=(audits||[]).filter(a=>a.status.includes("отвор")).length;
+  const usogl=Math.max(40,Math.min(99,100-probieniCapa.length*5-otvoreniNaodi*3));
+  return {leaks,vkupno,rizici,predv,usogl};
+}
+
+/* ---------- сметки ---------- */
+function seedAccounts(){
+  return [
+    {id:"acc-admin",role:"admin",ime:"Ваша фирма — Администрација",korisnik:"admin",lozinka:"admin2026",
+     email:"admin@vashafirma.mk",aktivna:true,kreirana:"01.01.2026",posledna:"—",demo:false,data:Object.assign({},PRAZNI),meta:{}},
+    {id:"acc-demo",role:"client",ime:"Демо компанија",korisnik:"demo",lozinka:"demo",
+     email:"demo@primer.mk",aktivna:true,kreirana:"01.01.2026",posledna:"—",demo:true,data:Object.assign({},PRAZNI),meta:{}},
+    {id:"acc-metal",role:"client",ime:"Металпром ДООЕЛ",korisnik:"metalprom",lozinka:"metal123",
+     email:"kvalitet@metalprom.mk",aktivna:true,kreirana:"15.02.2026",posledna:"—",demo:false,data:Object.assign({},PRAZNI),meta:{}},
+    {id:"acc-agro",role:"client",ime:"Агрофуд АД",korisnik:"agrofud",lozinka:"agro123",
+     email:"smk@agrofud.mk",aktivna:false,kreirana:"03.03.2026",posledna:"—",demo:false,data:Object.assign({},PRAZNI),meta:{}},
+  ];
+}
+let accounts=[];
+(function loadAccounts(){
+  try{ const raw=store.get("ii-accounts"); accounts=raw?JSON.parse(raw):seedAccounts(); }
+  catch(e){ accounts=seedAccounts(); }
+  if(!accounts.some(a=>a.role==="admin")) accounts.unshift(seedAccounts()[0]);
+})();
+function save(){ try{ store.set("ii-accounts",JSON.stringify(accounts)); }catch(e){} }
+const aktivniKlienti=()=>accounts.filter(a=>a.role==="client"&&a.aktivna).length;
+
+/* ---------- состојба ---------- */
+let cur=null;            // најавена сметка
+let view="tabla";        // тековен приказ
+let adminSelId=null;     // клиент што админот го прегледува
+let selRisk=0, openPred=0;
+let rez=null;
+
+function ctxAccount(){ // чии податоци се анализираат во моментов
+  if(cur&&cur.role==="admin"&&view==="klienti"&&adminSelId){
+    return accounts.find(a=>a.id===adminSelId)||null;
+  }
+  return cur;
+}
+function effectiveData(acc){ return acc&&acc.demo?DEMO:(acc?acc.data:PRAZNI); }
+function recompute(){ const a=ctxAccount(); rez=a?analyse(effectiveData(a)):null; }
+
+/* ---------- најава / одјава ---------- */
+function doLogin(){
+  const u=document.getElementById("user-in").value.trim().toLowerCase();
+  const p=document.getElementById("pass-in").value;
+  const err=document.getElementById("login-err");
+  const acc=accounts.find(a=>a.korisnik.toLowerCase()===u);
+  if(!acc||acc.lozinka!==p){ err.textContent="Погрешно корисничко име или лозинка."; err.style.display="block"; return; }
+  if(!acc.aktivna){ err.textContent="Оваа сметка е деактивирана. Контактирајте ја вашата консултантска фирма."; err.style.display="block"; return; }
+  err.style.display="none";
+  acc.posledna=denes(); save();
+  cur=acc; view=cur.role==="admin"?"smetki":"tabla"; adminSelId=null; selRisk=0; openPred=0;
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").classList.add("on");
+  recompute(); render(); window.scrollTo(0,0);
+}
+function logout(){
+  window.toggleSide(false);
+  cur=null; view="tabla"; adminSelId=null;
+  document.getElementById("app").classList.remove("on");
+  document.getElementById("login").style.display="flex";
+  document.getElementById("pass-in").value="";
+}
+
+/* ---------- вчитување библиотеки на барање ---------- */
+function loadLib(url){
+  return new Promise(function(res,rej){
+    var sc=document.createElement("script");
+    sc.src=url; sc.crossOrigin="anonymous";
+    sc.onload=function(){res();};
+    sc.onerror=function(){rej(new Error("нема мрежа"));};
+    document.head.appendChild(sc);
+  });
+}
+var _xlsxP=null,_papaP=null;
+function ensureXLSX(){
+  if(typeof XLSX!=="undefined") return Promise.resolve();
+  if(!_xlsxP) _xlsxP=loadLib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js")
+    .catch(function(e){_xlsxP=null;throw e;});
+  return _xlsxP;
+}
+function ensurePapa(){
+  if(typeof Papa!=="undefined") return Promise.resolve();
+  if(!_papaP) _papaP=loadLib("https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js")
+    .catch(function(e){_papaP=null;throw e;});
+  return _papaP;
+}
+
+/* ---------- дејства (глобални, повикувани од рендерирани копчиња) ---------- */
+window.toggleSide=function(open){
+  var sb=document.getElementById("sidebar"),sc=document.getElementById("scrim");
+  var e=sb.classList&&sb.classList.contains?sb.classList.contains("open"):false;
+  var want=(open===undefined)?!e:open;
+  if(want){ sb.classList.add("open"); sc.classList.add("on"); }
+  else{ sb.classList.remove("open"); sc.classList.remove("on"); }
+};
+window.go=v=>{ view=v; selRisk=0; openPred=0; window.toggleSide(false); recompute(); render(); window.scrollTo(0,0); };
+window.logout=logout;
+window.pickRisk=i=>{ selRisk=i; render(); };
+window.togglePred=i=>{ openPred=(openPred===i?null:i); render(); };
+window.setDemo=flag=>{
+  const a=ctxAccount(); if(!a) return;
+  a.demo=!!flag; save(); recompute(); render();
+  toast(flag?"Вклучен е демо режим — гледате примерни податоци.":"Вратено на сопствени податоци — внесете ги вашите датотеки.");
+};
+window.adminPick=id=>{ adminSelId=id||null; selRisk=0; openPred=0; recompute(); render(); };
+window.adminToggleActive=id=>{
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  if(!a.aktivna&&aktivniKlienti()>=MAX_AKTIVNI){ toast("Достигнат е лимитот од "+MAX_AKTIVNI+" активни сметки."); return; }
+  a.aktivna=!a.aktivna; save(); render();
+};
+window.adminDelete=id=>{
+  const a=accounts.find(x=>x.id===id); if(!a||a.role==="admin") return;
+  if(!confirm("Да се избрише сметката „"+a.ime+"\u201C и сите нејзини податоци?")) return;
+  accounts=accounts.filter(x=>x.id!==id); if(adminSelId===id) adminSelId=null;
+  save(); recompute(); render();
+};
+window.adminResetPass=id=>{
+  const a=accounts.find(x=>x.id===id); if(!a) return;
+  const nova=prompt("Нова лозинка за „"+a.ime+"\u201C:");
+  if(nova&&nova.trim().length>=4){ a.lozinka=nova.trim(); save(); toast("Лозинката е променета."); }
+  else if(nova!==null) toast("Лозинката мора да има барем 4 знаци.");
+};
+window.adminCreate=()=>{
+  const ime=document.getElementById("na-ime").value.trim();
+  const kor=document.getElementById("na-kor").value.trim().toLowerCase();
+  const loz=document.getElementById("na-loz").value;
+  const mail=document.getElementById("na-mail").value.trim();
+  if(!ime||!kor||loz.length<4){ toast("Пополнете име, корисничко име и лозинка (мин. 4 знаци)."); return; }
+  if(accounts.some(a=>a.korisnik.toLowerCase()===kor)){ toast("Корисничкото име е зафатено."); return; }
+  if(aktivniKlienti()>=MAX_AKTIVNI){ toast("Достигнат е лимитот од "+MAX_AKTIVNI+" активни сметки — деактивирајте некоја."); return; }
+  accounts.push({id:"acc-"+Date.now(),role:"client",ime,korisnik:kor,lozinka:loz,email:mail,
+    aktivna:true,kreirana:denes(),posledna:"—",demo:false,data:Object.assign({},PRAZNI),meta:{}});
+  save(); render(); toast("Сметката „"+ime+"\u201C е креирана.");
+};
+window.handleFile=async(key,input)=>{
+  const a=ctxAccount(); const file=input.files[0]; if(!a||!file) return;
+  try{
+    const isCsv=/\.csv$/i.test(file.name);
+    if(!isCsv){
+      try{ await ensureXLSX(); }
+      catch(e){
+        a.meta[key]={tip:"грешка",poraka:"За читање .xlsx потребна е интернет-врска (библиотеката се презема при прикачување). Поврзете се и обидете се повторно, или користете .csv — тој работи и без интернет."};
+        render(); return;
+      }
+    }else{
+      try{ await ensurePapa(); }catch(e){ /* постои вграден резервен читач за .csv */ }
+    }
+    const buf=await new Promise(function(res,rej){var fr=new FileReader();fr.onload=function(){res(fr.result);};fr.onerror=function(){rej(fr.error);};fr.readAsArrayBuffer(file);});
+    let rows;
+    if(isCsv){
+      const text=new TextDecoder().decode(buf);
+      if(typeof Papa!=="undefined") rows=Papa.parse(text,{header:true,skipEmptyLines:true}).data;
+      else{
+        const lines=text.split(/\r?\n/).filter(l=>l.trim());
+        const head=lines[0].split(/[;,]/).map(h=>h.trim());
+        rows=lines.slice(1).map(l=>{const c=l.split(/[;,]/);const o={};head.forEach((h,i)=>o[h]=c[i]);return o;});
+      }
+    }else{
+      const wb=XLSX.read(buf);
+      rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    }
+    const norm=NORMALIZERS[key](rows);
+    if(!norm||!norm.length){
+      a.meta[key]={tip:"грешка",poraka:"Колоните не се препознаени. Очекуван формат: "+SOURCES[key].format};
+    }else{
+      a.data[key]=norm;
+      a.meta[key]={tip:"датотека",ime:file.name,zapisi:norm.length};
+      if(a.demo){ a.demo=false; toast("Прикачивте свои податоци — демо режимот е исклучен."); }
+      selRisk=0; openPred=0;
+    }
+    save(); recompute();
+  }catch(e){
+    a.meta[key]={tip:"грешка",poraka:"Датотеката не може да се прочита. Користете .xlsx или .csv."};
+  }
+  render();
+};
+
+/* ---------- градбени блокови ---------- */
+function naslov(kicker,title,sub){
+  return `<div class="section-head"><div class="kicker">${kicker}</div><h2 class="title">${title}</h2>${sub?`<p class="sub">${sub}</p>`:""}</div>`;
+}
+function kpiCard(label,value,note,tone){
+  const c={bad:"var(--alarm)",warn:"var(--amber)",ok:"var(--ok)"}[tone]||"var(--ink)";
+  return `<div class="card kpi"><div class="lbl">${label}</div><div class="val" style="color:${c}">${value}</div><div class="note">${note}</div></div>`;
+}
+function probBar(p){
+  return `<div class="probwrap"><div class="probtrack"><div style="width:${p}%;height:100%;background:${probBoja(p)}"></div></div>
+    <span class="mono" style="font-size:13px;font-weight:600;color:${probBoja(p)};width:42px;text-align:right;">${p}%</span></div>`;
+}
+function modeBanner(){
+  const a=ctxAccount(); if(!a||a.role==="admin"&&view!=="klienti") return "";
+  const readOnly=cur.role==="admin";
+  if(a.demo) return `<div class="mode-banner demo">
+    <span style="font-weight:700;">🟡 Демо режим</span>
+    <span style="color:var(--steel);">Прикажани се примерни податоци за да видите како работи платформата.</span>
+    ${readOnly?"":`<button type="button" class="btn ghost mini" onclick="setDemo(false)">Врати на мои податоци</button>`}
+  </div>`;
+  return `<div class="mode-banner own">
+    <span style="font-weight:700;">🔵 Сопствени податоци</span>
+    <span style="color:var(--steel);">Анализата се темели на вашите прикачени датотеки.</span>
+    ${readOnly?"":`<button type="button" class="btn ghost mini" onclick="setDemo(true)">Види демо со примерни податоци</button>`}
+  </div>`;
+}
+function emptyState(){
+  return `<div class="card" style="padding:48px 26px;text-align:center;max-width:620px;margin:30px auto;">
+    <div style="font-size:40px;margin-bottom:12px;">📊</div>
+    <h3 class="brand" style="font-size:18px;margin:0 0 10px;">Нема податоци за анализа</h3>
+    <p style="color:var(--steel);font-size:14px;line-height:1.6;margin:0 0 22px;">
+      Прикачете барем еден извор во делот „Внес на податоци" — платформата веднаш ќе ја изработи анализата.
+      Или вклучете демо режим за да видите пример.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <button type="button" class="btn primary" onclick="go('podatoci')">Внеси податоци</button>
+      <button type="button" class="btn ghost" onclick="setDemo(true)">Види демо</button>
+    </div></div>`;
+}
+
+/* ---------- SVG графикон ---------- */
+function chartSVG(d){
+  const kpi=d.kpi; if(!kpi||kpi.length<2) return "";
+  const W=720,H=230,padL=44,padR=16,padT=16,padB=30;
+  const maxT=Math.max(...kpi.map(k=>k.trosociKvalitet))*1.1||1;
+  const bw=(W-padL-padR)/kpi.length;
+  let bars="",labels="",grid="";
+  for(let g=0;g<=4;g++){
+    const y=padT+(H-padT-padB)*g/4;
+    grid+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>
+      <text x="${padL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--steel)" font-family="IBM Plex Mono,monospace">${Math.round(maxT*(1-g/4)/1000)}к</text>`;
+  }
+  kpi.forEach((k,i)=>{
+    const h=(k.trosociKvalitet/maxT)*(H-padT-padB);
+    bars+=`<rect x="${padL+i*bw+bw*0.18}" y="${H-padB-h}" width="${bw*0.64}" height="${h}" rx="3" fill="${i===kpi.length-1?"var(--alarm)":"var(--navy)"}"/>`;
+    labels+=`<text x="${padL+i*bw+bw/2}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--steel)" font-family="IBM Plex Mono,monospace">${esc(k.mesec)}</text>`;
+  });
+  let line="";
+  if(d.complaints&&d.complaints.length){
+    const broj=kpi.map((k,i)=>d.complaints.filter(c=>String(c.datum).includes("."+String(i+1).padStart(2,"0"))).length);
+    const maxB=Math.max(...broj,1)*1.3;
+    const pts=broj.map((b,i)=>`${padL+i*bw+bw/2},${H-padB-(b/maxB)*(H-padT-padB)}`).join(" ");
+    line=`<polyline points="${pts}" fill="none" stroke="var(--amber)" stroke-width="2.5"/>`+
+      broj.map((b,i)=>`<circle cx="${padL+i*bw+bw/2}" cy="${H-padB-(b/maxB)*(H-padT-padB)}" r="3.5" fill="var(--amber)"/>`).join("");
+  }
+  return `<div class="card" style="padding:18px 12px 8px;margin-bottom:30px;">
+    <div style="font-size:13px;font-weight:600;padding:0 10px 10px;">Трошоци за квалитет (столбови, илј. МКД) и број на рекламации (линија), по месец</div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;" role="img" aria-label="Графикон">${grid}${bars}${line}${labels}</svg></div>`;
+}
+
+/* ---------- клиентски прикази ---------- */
+function renderLeaks(){
+  return `<div class="card" style="padding:20px;">`+rez.leaks.map((l,i)=>`
+    <div style="padding:14px 4px;${i<rez.leaks.length-1?"border-bottom:1px solid var(--line);":""}">
+      <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;justify-content:space-between;">
+        <div style="font-weight:600;font-size:15px;">${esc(l.naziv)}
+          <span class="mono" style="font-size:11px;color:var(--steel);margin-left:10px;">${esc(l.izvor)}</span></div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="mono" style="font-weight:600;font-size:15px;">${mkd(l.iznos)}${l.procenka?' <span style="color:var(--steel);font-weight:400;">*</span>':""}</span>
+          ${l.trend!==null&&l.trend!==undefined?`<span class="chip" style="background:${l.trend>0?"#FBEAE7":"#E6F4EC"};color:${l.trend>0?"var(--alarm)":"var(--ok)"};">${l.trend>0?"▲":"▼"} ${Math.abs(l.trend)}%</span>`:""}
+        </div></div>
+      <div class="leakbar"><div style="width:${rez.vkupno?(l.iznos/rez.vkupno)*100:0}%"></div></div>
+      <div style="font-size:13px;color:var(--steel);line-height:1.55;">${esc(l.opis)}</div>
+    </div>`).join("")+
+    `<div style="margin-top:14px;padding-top:12px;border-top:2px solid var(--ink);display:flex;justify-content:space-between;font-weight:700;">
+      <span>Вкупно идентификувано истекување</span><span class="mono" style="color:var(--alarm)">${mkd(rez.vkupno)}</span></div>
+    <div style="font-size:11.5px;color:var(--steel);margin-top:8px;">* означува проценета вредност, не директно измерена.</div></div>`;
+}
+function renderRizici(){
+  if(!rez.rizici.length) return `<div class="card" style="padding:24px;color:var(--steel);">Од достапните податоци не се детектирани значајни ризици.</div>`;
+  const sel=rez.rizici[Math.min(selRisk,rez.rizici.length-1)];
+  let cells="";
+  [5,4,3,2,1].forEach(v=>{
+    cells+=`<div class="mono" style="font-size:11px;color:var(--steel);align-self:center;text-align:center;">${v}</div>`;
+    [1,2,3,4,5].forEach(vl=>{
+      const tuka=rez.rizici.map((r,idx)=>({r,idx})).filter(x=>x.r.v===v&&x.r.vl===vl);
+      const active=tuka.some(x=>rez.rizici[x.idx]===sel);
+      cells+=`<div class="mcell" ${tuka.length?`role="button" tabindex="0" onclick="pickRisk(${tuka[0].idx})" onkeydown="if(event.key==='Enter')pickRisk(${tuka[0].idx})" style="background:${rizikBoja(v,vl)};cursor:pointer;${active?"border-color:var(--ink);":""}"`:`style="background:#E7ECF0;"`}>${tuka.map(x=>x.idx+1).join(",")}</div>`;
+    });
+  });
+  cells+=`<div></div>`+[1,2,3,4,5].map(vl=>`<div class="mono" style="font-size:11px;color:var(--steel);text-align:center;">${vl}</div>`).join("");
+  return `<div style="display:flex;gap:16px;flex-wrap:wrap;">
+    <div class="card" style="padding:20px;flex:1 1 300px;">
+      <div class="matrix">${cells}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--steel);margin-top:8px;"><span>↑ веројатност</span><span>влијание →</span></div></div>
+    <div class="card" style="padding:20px;flex:1 1 300px;">
+      <span class="chip" style="background:#F1F4F7;color:${rizikBoja(sel.v,sel.vl)};">${sel.id} · оцена ${sel.v*sel.vl} / 25</span>
+      <h3 style="margin:12px 0 4px;font-size:17px;">${esc(sel.naziv)}</h3>
+      <div style="font-size:12px;color:var(--steel);margin-bottom:10px;">Сектор: ${esc(sel.sektor)} · Веројатност ${sel.v}/5 · Влијание ${sel.vl}/5</div>
+      <p style="font-size:14px;line-height:1.6;margin:0;">${esc(sel.opis)}</p>
+      <div style="margin-top:14px;border-top:1px dashed var(--line);padding-top:10px;">
+        ${rez.rizici.map((r,idx)=>`<div class="row" tabindex="0" onclick="pickRisk(${idx})" onkeydown="if(event.key==='Enter')pickRisk(${idx})"
+          style="display:flex;justify-content:space-between;gap:10px;padding:8px 6px;border-radius:4px;font-size:13px;${r===sel?"font-weight:600;":""}">
+          <span><span class="mono" style="color:var(--steel);margin-right:8px;">${idx+1}</span>${esc(r.naziv)}</span>
+          <span class="mono" style="color:${rizikBoja(r.v,r.vl)};font-weight:600;">${r.v*r.vl}</span></div>`).join("")}
+      </div></div></div>`;
+}
+function renderPredv(){
+  if(!rez.predv.length) return `<div class="card" style="padding:24px;color:var(--steel);font-size:14px;">За предвидувања се потребни податоци од внатрешни проверки — прикачете ги во „Внес на податоци".</div>`;
+  return `<div class="card">`+rez.predv.map((p,i)=>{
+    const open=openPred===i;
+    return `<div style="${i<rez.predv.length-1?"border-bottom:1px solid var(--line);":""}">
+      <div class="row" tabindex="0" onclick="togglePred(${i})" onkeydown="if(event.key==='Enter')togglePred(${i})"
+        style="display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 18px;">
+        <span class="mono" style="font-size:12px;color:var(--steel);width:74px;">${esc(p.tocka)}</span>
+        <div style="flex:1 1 180px;font-weight:600;font-size:15px;">${esc(p.oblast)}</div>
+        ${probBar(p.p)}
+        <span style="color:var(--steel);font-size:18px;display:inline-block;${open?"transform:rotate(90deg);":""}">›</span></div>
+      ${open?`<div style="padding:0 18px 18px;font-size:13.5px;line-height:1.6;">
+        <div style="margin-bottom:8px;"><strong>Рани сигнали: </strong><span style="color:var(--steel);">${p.signali.map(esc).join(" · ")}.</span></div>
+        <div style="background:#EFF6F1;border:1px solid #CBE5D5;border-radius:5px;padding:10px 14px;">
+          <strong style="color:var(--ok);">Предложена превентивна мерка:</strong> ${esc(p.merka)}</div></div>`:""}
+    </div>`;}).join("")+`</div>`;
+}
+function renderPodatoci(){
+  const a=ctxAccount();
+  return naslov("Внес на податоци","Поврзете ги вашите евиденции",
+    "Прикачете .xlsx или .csv датотеки. Платформата сама ги препознава колоните — доволно е насловите да содржат клучни зборови како во очекуваниот формат. Секое ново прикачување веднаш ја освежува анализата и автоматски го исклучува демо режимот.")+
+    modeBanner()+
+    `<div class="src-grid">`+Object.entries(SOURCES).map(([key,s])=>{
+      const m=a.meta[key],ima=a.data[key];
+      return `<div class="card" style="padding:18px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <div style="font-weight:700;font-size:15px;">${s.ikona} ${s.naziv}</div>
+          ${ima?`<span class="chip" style="background:#E6F4EC;color:var(--ok);">● ${(m&&m.zapisi)||ima.length} записи</span>`
+               :`<span class="chip" style="background:#F1F4F7;color:var(--steel);">○ празно</span>`}</div>
+        <div style="font-size:13px;color:var(--steel);line-height:1.5;">${s.opis}</div>
+        <div class="fmt">Формат: ${s.format}</div>
+        ${m&&m.tip==="грешка"?`<div style="font-size:12.5px;color:var(--alarm);">${esc(m.poraka)}</div>`:""}
+        ${m&&m.tip==="датотека"?`<div style="font-size:12px;color:var(--ok);">Прикачено: ${esc(m.ime)}</div>`:""}
+        <input type="file" accept=".xlsx,.xls,.csv" id="f-${key}" style="display:none" onchange="handleFile('${key}',this)">
+        <button type="button" class="btn primary" style="margin-top:auto;" onclick="document.getElementById('f-${key}').click()">
+          ${ima?"Замени датотека":"Прикачи датотека"}</button>
+      </div>`;}).join("")+`</div>`;
+}
+function renderTabla(){
+  const a=ctxAccount();
+  if(!rez) return naslov("Контролна табла","Состојба на системот — "+esc(a.ime),"")+modeBanner()+emptyState();
+  const d=effectiveData(a);
+  const krit=rez.rizici.filter(r=>r.v*r.vl>=15).length;
+  const p50=rez.predv.filter(p=>p.p>=50).length;
+  return naslov("Контролна табла","Состојба на системот — "+esc(a.ime),
+    "Автоматска анализа на податоците од вашиот систем за квалитет (ИСО 9001 / 14001 / 50001) и деловните евиденции.")+
+    modeBanner()+
+    `<div class="kpi-grid">
+      ${kpiCard("Идентификувано истекување на профит",mkd(rez.vkupno),"за анализираниот период, по сите извори","bad")}
+      ${kpiCard("Активни ризици",rez.rizici.length,"од кои "+krit+" критични","warn")}
+      ${kpiCard("Предвидени неусогласености",p50,"со веројатност над 50%","warn")}
+      ${kpiCard("Индекс на усогласеност",rez.usogl+"%","врз основа на отворени наоди и CAPA рокови",rez.usogl>=85?"ok":"warn")}
+    </div>`+chartSVG(d)+
+    `<div class="hi3">
+      <div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:10px;">⚠ Најголемо истекување</div>
+        ${rez.leaks[0]?`<div style="font-size:15px;font-weight:600;">${esc(rez.leaks[0].naziv)}</div>
+        <div class="mono" style="color:var(--alarm);font-weight:600;margin:6px 0;">${mkd(rez.leaks[0].iznos)}</div>
+        <button type="button" class="btn ghost mini" onclick="go('profit')">Види детали →</button>`:""}</div>
+      <div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:10px;">◬ Најкритичен ризик</div>
+        ${rez.rizici[0]?`<div style="font-size:15px;font-weight:600;">${esc(rez.rizici[0].naziv)}</div>
+        <div class="mono" style="color:${rizikBoja(rez.rizici[0].v,rez.rizici[0].vl)};font-weight:600;margin:6px 0;">оцена ${rez.rizici[0].v*rez.rizici[0].vl} / 25</div>
+        <button type="button" class="btn ghost mini" onclick="go('rizici')">Види регистар →</button>`:`<div style="font-size:13px;color:var(--steel);">Нема детектирани ризици.</div>`}</div>
+      <div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:10px;">◎ Следна неусогласеност</div>
+        ${rez.predv[0]?`<div style="font-size:15px;font-weight:600;">${esc(rez.predv[0].oblast)}</div>
+        <div class="mono" style="color:var(--alarm);font-weight:600;margin:6px 0;">${rez.predv[0].p}% веројатност · ${esc(rez.predv[0].tocka)}</div>
+        <button type="button" class="btn ghost mini" onclick="go('predviduvanja')">Види сигнали →</button>`:`<div style="font-size:13px;color:var(--steel);">Прикачете податоци од внатрешни проверки.</div>`}</div>
+    </div>`;
+}
+
+/* ---------- админ прикази ---------- */
+function renderSmetki(){
+  const klienti=accounts.filter(a=>a.role==="client");
+  return naslov("Администрација","Управување со сметки",
+    `Платформата поддржува до ${MAX_AKTIVNI} активни клиентски сметки истовремено. Моментално активни: ${aktivniKlienti()} / ${MAX_AKTIVNI}.`)+
+    `<div class="card" style="padding:20px;margin-bottom:22px;">
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">➕ Нова клиентска сметка</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:10px;">
+        <div><label class="f" style="margin-top:0;">Име на компанија</label><input type="text" id="na-ime" placeholder="пр. Техноградба ДОО"></div>
+        <div><label class="f" style="margin-top:0;">Корисничко име</label><input type="text" id="na-kor" placeholder="пр. tehnogradba" autocapitalize="off"></div>
+        <div><label class="f" style="margin-top:0;">Лозинка</label><input type="text" id="na-loz" placeholder="мин. 4 знаци"></div>
+        <div><label class="f" style="margin-top:0;">Е-пошта (контакт)</label><input type="email" id="na-mail" placeholder="kvalitet@firma.mk"></div>
+      </div>
+      <button type="button" class="btn primary" style="margin-top:14px;" onclick="adminCreate()">Креирај сметка</button>
+    </div>
+    <div class="card acc-wrap" style="padding:6px 14px 14px;">
+    <table class="acc-table"><thead><tr>
+      <th>Компанија</th><th>Корисник</th><th>Е-пошта</th><th>Статус</th><th>Извори</th><th>Режим</th><th>Креирана</th><th>Последна најава</th><th></th>
+    </tr></thead><tbody>`+
+    klienti.map(a=>{
+      const izv=Object.values(a.data).filter(Boolean).length;
+      return `<tr>
+        <td style="font-weight:600;">${esc(a.ime)}</td>
+        <td class="mono" style="font-size:12px;">${esc(a.korisnik)}</td>
+        <td style="color:var(--steel);">${esc(a.email||"—")}</td>
+        <td>${a.aktivna?`<span class="chip" style="background:#E6F4EC;color:var(--ok);">● активна</span>`:`<span class="chip" style="background:#F1F4F7;color:var(--steel);">○ неактивна</span>`}</td>
+        <td class="mono">${izv} / 6</td>
+        <td>${a.demo?`<span class="chip" style="background:#FDF3DE;color:var(--amber);">демо</span>`:`<span class="chip" style="background:#E9F1FB;color:var(--navy);">свои</span>`}</td>
+        <td style="color:var(--steel);">${esc(a.kreirana)}</td>
+        <td style="color:var(--steel);">${esc(a.posledna)}</td>
+        <td style="white-space:nowrap;">
+          <button type="button" class="btn ghost mini" onclick="adminPick('${a.id}');go('klienti')">Податоци</button>
+          <button type="button" class="btn ghost mini" onclick="adminToggleActive('${a.id}')">${a.aktivna?"Деактивирај":"Активирај"}</button>
+          <button type="button" class="btn ghost mini" onclick="adminResetPass('${a.id}')">Лозинка</button>
+          <button type="button" class="btn danger mini" onclick="adminDelete('${a.id}')">Избриши</button>
+        </td></tr>`;
+    }).join("")+`</tbody></table></div>`;
+}
+function renderKlienti(){
+  const klienti=accounts.filter(a=>a.role==="client");
+  const sel=accounts.find(a=>a.id===adminSelId);
+  let html=naslov("Администрација","Преглед на податоци на клиенти",
+    "Изберете клиент за да ја видите неговата анализа и состојба на изворите — исто како што ја гледа тој (само за читање).")+
+    `<div class="card" style="padding:16px 18px;margin-bottom:22px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+      <label style="font-weight:600;font-size:14px;">Клиент:</label>
+      <select onchange="adminPick(this.value)" style="max-width:340px;">
+        <option value="">— изберете —</option>
+        ${klienti.map(a=>`<option value="${a.id}" ${a.id===adminSelId?"selected":""}>${esc(a.ime)} (${esc(a.korisnik)})</option>`).join("")}
+      </select>
+      ${sel?`<span class="chip" style="background:#F1F4F7;color:var(--steel);">е-пошта: ${esc(sel.email||"—")} · креирана: ${esc(sel.kreirana)} · последна најава: ${esc(sel.posledna)}</span>`:""}
+    </div>`;
+  if(!sel) return html;
+  html+=rez?renderTabla():modeBanner()+`<div class="card" style="padding:24px;color:var(--steel);">Клиентот сè уште нема прикачено податоци и не користи демо режим.</div>`;
+  if(rez) html+=`<div style="margin-top:26px;">`+naslov("","Истекувања на профит — "+esc(sel.ime),"")+renderLeaks()+`</div>
+    <div style="margin-top:26px;">`+naslov("","Ризици","")+renderRizici()+`</div>
+    <div style="margin-top:26px;">`+naslov("","Предвидени неусогласености","")+renderPredv()+`</div>`;
+  return html;
+}
+
+/* ---------- главен рендер ---------- */
+const NAV_CLIENT=[["tabla","▦","Контролна табла"],["podatoci","⇪","Внес на податоци"],["profit","₥","Профит и истекувања"],["rizici","◬","Ризици"],["predviduvanja","◎","Предвидувања"]];
+const NAV_ADMIN=[["smetki","▤","Сметки"],["klienti","◉","Податоци на клиенти"]];
+
+function render(){
+  if(!cur) return;
+  const nav=cur.role==="admin"?NAV_ADMIN:NAV_CLIENT;
+  const brIzvori=cur.role==="client"?Object.values(cur.data).filter(Boolean).length:null;
+  document.getElementById("sidebar").innerHTML=
+    `<div class="logo-block" style="padding:0 8px 18px;">
+      <div class="brand" style="font-size:16px;color:#fff;line-height:1.3;">Intelligent<br><span style="color:#7FB4E8;">Insight</span></div>
+      <div class="mono" style="font-size:11px;color:#5C7188;margin-top:8px;">${esc(cur.ime)}</div>
+      ${cur.role==="admin"?`<span class="chip" style="background:#24374C;color:#7FB4E8;margin-top:8px;">АДМИН</span>`:""}
+    </div>`+
+    nav.map(([id,ik,ime])=>`<button type="button" class="nav${view===id?" active":""}" onclick="go('${id}')"><span class="ik">${ik}</span>${ime}</button>`).join("")+
+    `<button type="button" class="nav" onclick="logout()"><span class="ik">⏻</span>Одјави се</button>`+
+    `<div class="side-foot">${cur.role==="admin"
+        ?`Активни сметки: <strong style="color:#93A5B7;">${aktivniKlienti()} / ${MAX_AKTIVNI}</strong>`
+        :`Поврзани извори: <strong style="color:#93A5B7;">${brIzvori} / 6</strong>${cur.demo?`<br><span style="color:#E5C06A;">Демо режим вклучен</span>`:""}`}
+    </div>`;
+
+  let html="";
+  if(cur.role==="admin"){
+    if(view==="smetki") html=renderSmetki();
+    else if(view==="klienti") html=renderKlienti();
+    else html=renderSmetki();
+  }else{
+    if(view==="tabla") html=renderTabla();
+    else if(view==="podatoci") html=renderPodatoci();
+    else if(view==="profit") html=!rez?naslov("Модул 01 · Каде губите профит","Истекувања на профит, по извор","")+modeBanner()+emptyState()
+      :naslov("Модул 01 · Каде губите профит","Истекувања на профит, по извор",
+      "Платформата ги вкрстува КПИ, рекламациите, енергијата, отпадот и CAPA евиденцијата и го искажува секој пропуст во денари — рангирано од најголем кон најмал.")+modeBanner()+renderLeaks();
+    else if(view==="rizici") html=!rez?naslov("Модул 02 · Каде се појавуваат ризици","Регистар на ризици","")+modeBanner()+emptyState()
+      :naslov("Модул 02 · Каде се појавуваат ризици","Автоматски генериран регистар на ризици",
+      "Ризиците не се внесуваат рачно — платформата ги изведува од вашите живи податоци: пробиени CAPA рокови, повторливи рекламации, отворени наоди, енергетски и еколошки трендови.")+modeBanner()+renderRizici();
+    else if(view==="predviduvanja") html=!rez?naslov("Модул 03 · Каде ќе се случи следната неусогласеност","Предвидувања","")+modeBanner()+emptyState()
+      :naslov("Модул 03 · Каде ќе се случи следната неусогласеност","Предвидување пред наодот, не после",
+      "За секоја точка од стандардот каде што се собираат рани сигнали, платформата пресметува веројатност за неусогласеност и предлага превентивна мерка. Допрете на ред за детали.")+modeBanner()+renderPredv();
+  }
+  document.getElementById("main").innerHTML=html;
+}
+
+/* ---------- поврзување на најавата (безбедно, работи на секој уред) ---------- */
+document.getElementById("login-btn").addEventListener("click",doLogin);
+document.getElementById("user-in").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+document.getElementById("pass-in").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin();});
+</script>
+</body>
+</html>
